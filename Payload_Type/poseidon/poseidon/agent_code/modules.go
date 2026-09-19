@@ -25,6 +25,7 @@ import (
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/keylog"
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/keys"
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/kill"
+	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/ledit"
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/libinject"
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/link_tcp"
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/link_webshell"
