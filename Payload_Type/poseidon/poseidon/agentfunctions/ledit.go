@@ -10,10 +10,10 @@ func init() {
 	agentstructs.AllPayloadData.Get("poseidon").AddCommand(agentstructs.Command{
 		Name:                "ledit",
 		Description:         "Preview a file with one-based line numbers, or remove selected lines",
-		HelpString:          "ledit -numbers 3,5,9,52 -path 'path to file'",
+		HelpString:          "ledit -numbers 1,5,10 -path 'path to file'",
 		Version:             1,
 		Author:              "@ice-wzl",
-		MitreAttackMappings: []string{},
+		MitreAttackMappings: []string{"T1685.006"},
 		SupportedUIFeatures: []string{},
 		CommandAttributes: agentstructs.CommandAttribute{
 			SupportedOS:        []string{agentstructs.SUPPORTED_OS_LINUX, agentstructs.SUPPORTED_OS_MACOS},
@@ -26,7 +26,7 @@ func init() {
 				ParameterType:    agentstructs.COMMAND_PARAMETER_TYPE_STRING,
 				ParameterGroupInformation: []agentstructs.ParameterGroupInfo{
 					{
-						ParameterIsRequired: false,
+						ParameterIsRequired: true,
 						UIModalPosition:     1,
 					},
 				},

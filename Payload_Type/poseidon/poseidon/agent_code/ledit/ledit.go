@@ -43,93 +43,73 @@ func Run(task structs.Task) {
 	}
 
 	if strings.TrimSpace(args.Numbers) == "" {
-		// preview mode
-		contents, err := readFileContents(args.Path)
-		if err != nil {
-			msg.SetError(err.Error())
-			task.Job.SendResponses <- msg
-			return
-		}
-
-		contentsString := string(contents)
-		lines := strings.Split(contentsString, "\n")
-
-		for index, line := range lines {
-			if index == len(lines)-1 && line == "" {
-				break
-			}
-			lines[index] = fmt.Sprintf("%d. %s", index+1, line)
-		}
-
-		msg.UserOutput = strings.Join(lines, "\n")
-		msg.Completed = true
-		task.Job.SendResponses <- msg
-		return
-
-	} else {
-		contents, err := readFileContents(args.Path)
-		if err != nil {
-			msg.SetError(err.Error())
-			task.Job.SendResponses <- msg
-			return
-		}
-
-		contentsString := string(contents)
-		lines := strings.Split(contentsString, "\n")
-
-		lineCount := len(lines)
-		if lineCount > 0 && lines[lineCount-1] == "" {
-			lineCount--
-		}
-
-		remove := make(map[int]struct{})
-
-		for _, value := range strings.Split(args.Numbers, ",") {
-			number, err := strconv.Atoi(strings.TrimSpace(value))
-			if err != nil || number < 1 || number > lineCount {
-				msg.SetError(fmt.Sprintf("invaid line number: %v", value))
-				task.Job.SendResponses <- msg
-				return
-			}
-			remove[number] = struct{}{}
-		}
-
-		remaining := make([]string, 0, len(lines))
-		for index, line := range lines {
-			if _, shouldRemove := remove[index+1]; !shouldRemove {
-				remaining = append(remaining, line)
-			}
-		}
-
-		cleanContents := strings.Join(remaining, "\n")
-
-		file, err := os.OpenFile(args.Path, os.O_WRONLY|os.O_TRUNC, 0)
-		if err != nil {
-			msg.SetError(err.Error())
-			task.Job.SendResponses <- msg
-			return
-		}
-
-		_, writeErr := io.WriteString(file, cleanContents)
-		closeErr := file.Close()
-
-		if writeErr != nil {
-			msg.SetError(writeErr.Error())
-			task.Job.SendResponses <- msg
-			return
-		}
-
-		if closeErr != nil {
-			msg.SetError(closeErr.Error())
-			task.Job.SendResponses <- msg
-			return
-		}
-
-		msg.UserOutput = fmt.Sprintf("Successfully removed lines: %v", args.Numbers)
-		msg.Completed = true
+		msg.SetError("numbers is required")
 		task.Job.SendResponses <- msg
 		return
 	}
+
+	contents, err := readFileContents(args.Path)
+	if err != nil {
+		msg.SetError(err.Error())
+		task.Job.SendResponses <- msg
+		return
+	}
+
+	contentsString := string(contents)
+	lines := strings.Split(contentsString, "\n")
+
+	lineCount := len(lines)
+	if lineCount > 0 && lines[lineCount-1] == "" {
+		lineCount--
+	}
+
+	remove := make(map[int]struct{})
+
+	for _, value := range strings.Split(args.Numbers, ",") {
+		number, err := strconv.Atoi(strings.TrimSpace(value))
+		if err != nil || number < 1 || number > lineCount {
+			msg.SetError(fmt.Sprintf("invaid line number: %v", value))
+			task.Job.SendResponses <- msg
+			return
+		}
+		remove[number] = struct{}{}
+	}
+
+	remaining := make([]string, 0, len(lines))
+	for index, line := range lines {
+		if _, shouldRemove := remove[index+1]; !shouldRemove {
+			remaining = append(remaining, line)
+		}
+	}
+
+	cleanContents := strings.Join(remaining, "\n")
+
+	file, err := os.OpenFile(args.Path, os.O_WRONLY|os.O_TRUNC, 0)
+	if err != nil {
+		msg.SetError(err.Error())
+		task.Job.SendResponses <- msg
+		return
+	}
+
+	_, writeErr := io.WriteString(file, cleanContents)
+	closeErr := file.Close()
+
+	if writeErr != nil {
+		msg.SetError(writeErr.Error())
+		task.Job.SendResponses <- msg
+		return
+	}
+
+	if closeErr != nil {
+		msg.SetError(closeErr.Error())
+		task.Job.SendResponses <- msg
+		return
+	}
+
+	msg.UserOutput = fmt.Sprintf("Successfully removed lines: %v", args.Numbers)
+	msg.Completed = true
+	task.Job.SendResponses <- msg
+
 }
 
 func parseArguments(params string) (Arguments, error) {
