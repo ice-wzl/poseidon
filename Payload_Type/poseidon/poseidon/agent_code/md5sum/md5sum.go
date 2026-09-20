@@ -4,6 +4,7 @@ import (
 	// Standard
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
 
@@ -38,7 +39,7 @@ func Run(task structs.Task) {
 
 	hashVal := hex.EncodeToString(checkSum)
 
-	msg.UserOutput = hashVal
+	msg.UserOutput = fmt.Sprintf("%s %s", hashVal, task.Params)
 	msg.Completed = true
 	task.Job.SendResponses <- msg
 }

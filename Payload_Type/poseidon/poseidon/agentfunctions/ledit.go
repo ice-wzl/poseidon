@@ -13,7 +13,7 @@ func init() {
 		HelpString:          "ledit -numbers 1,5,10 -path 'path to file'",
 		Version:             1,
 		Author:              "@ice-wzl",
-		MitreAttackMappings: []string{"T1685.006"},
+		MitreAttackMappings: []string{"T1685"},
 		SupportedUIFeatures: []string{},
 		CommandAttributes: agentstructs.CommandAttribute{
 			SupportedOS:        []string{agentstructs.SUPPORTED_OS_LINUX, agentstructs.SUPPORTED_OS_MACOS},
