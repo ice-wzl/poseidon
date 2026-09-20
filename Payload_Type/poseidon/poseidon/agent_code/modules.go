@@ -33,6 +33,7 @@ import (
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/listtasks"
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/ls"
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/lsopen"
+	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/md5sum"
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/mkdir"
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/mv"
 	_ "github.com/MythicAgents/poseidon/Payload_Type/poseidon/agent_code/persist_launchd"
