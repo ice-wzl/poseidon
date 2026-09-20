@@ -95,7 +95,7 @@ var payloadDefinition = agentstructs.PayloadType{
 			DefaultValue:  false,
 			ParameterType: agentstructs.BUILD_PARAMETER_TYPE_BOOLEAN,
 			GroupName:     "egress",
-			UiPosition:    10,
+			UiPosition:    11,
 		},
 		{
 			Name:          "garble",
@@ -114,13 +114,29 @@ var payloadDefinition = agentstructs.PayloadType{
 			UiPosition:    4,
 		},
 		{
+			Name:          "upx",
+			Description:   "Compress the final Linux executable with upx",
+			Required:      false,
+			DefaultValue:  false,
+			ParameterType: agentstructs.BUILD_PARAMETER_TYPE_BOOLEAN,
+			SupportedOS:   []string{agentstructs.SUPPORTED_OS_LINUX},
+			HideConditions: []agentstructs.BuildParameterHideCondition{
+				{
+					Name:    "mode",
+					Operand: agentstructs.HideConditionOperandNotIN,
+					Choices: []string{"default"},
+				},
+			},
+			UiPosition: 7,
+		},
+		{
 			Name:          "egress_order",
 			Description:   "Prioritize the order in which egress connections are made (if including multiple egress c2 profiles)",
 			Required:      false,
 			ParameterType: agentstructs.BUILD_PARAMETER_TYPE_ARRAY,
 			DefaultValue:  []string{"http", "websocket", "dynamichttp", "httpx"},
 			GroupName:     "egress",
-			UiPosition:    7,
+			UiPosition:    8,
 		},
 		{
 			Name:          "egress_failover",
@@ -130,7 +146,7 @@ var payloadDefinition = agentstructs.PayloadType{
 			Choices:       []string{"failover"},
 			DefaultValue:  "failover",
 			GroupName:     "egress",
-			UiPosition:    8,
+			UiPosition:    9,
 		},
 		{
 			Name:          "failover_threshold",
@@ -139,7 +155,7 @@ var payloadDefinition = agentstructs.PayloadType{
 			ParameterType: agentstructs.BUILD_PARAMETER_TYPE_NUMBER,
 			DefaultValue:  10,
 			GroupName:     "egress",
-			UiPosition:    9,
+			UiPosition:    10,
 		},
 		{
 			Name:          "static",
@@ -177,6 +193,10 @@ var payloadDefinition = agentstructs.PayloadType{
 		{
 			Name:        "Garble",
 			Description: "Adding in Garble (obfuscation)",
+		},
+		{
+			Name:        "Upx",
+			Description: "Add in Upx compression to shrink the payload size",
 		},
 		{
 			Name:        "Compiling",
@@ -247,6 +267,36 @@ func getArchitectureChoices(message agentstructs.PTRPCDynamicQueryBuildParameter
 	}
 }
 
+func resolveGoArchitecture(architecture string) (string, error) {
+	switch architecture {
+	case "AMD_x64":
+		return "amd64", nil
+	case "ARM_x64":
+		return "arm64", nil
+	case "MIPS":
+		return "mips", nil
+	case "MIPSLE":
+		return "mipsle", nil
+	case "MIPS64":
+		return "mips64", nil
+	case "MIPS64LE":
+		return "mips64le", nil
+	default:
+		return "", fmt.Errorf("Unsupported Architecture: %s", architecture)
+	}
+}
+
+func resolveTargetOs(payloadBuildMsg agentstructs.PayloadBuildMessage) (string, error) {
+	switch payloadBuildMsg.SelectedOS {
+	case agentstructs.SUPPORTED_OS_LINUX:
+		return "linux", nil
+	case agentstructs.SUPPORTED_OS_MACOS:
+		return "darwin", nil
+	default:
+		return "", fmt.Errorf("Poseidon does not support operating system %q", payloadBuildMsg.SelectedOS)
+	}
+}
+
 func build(payloadBuildMsg agentstructs.PayloadBuildMessage) agentstructs.PayloadBuildResponse {
 	payloadBuildResponse := agentstructs.PayloadBuildResponse{
 		PayloadUUID:        payloadBuildMsg.PayloadUUID,
@@ -263,15 +313,9 @@ func build(payloadBuildMsg agentstructs.PayloadBuildMessage) agentstructs.Payloa
 		return buildError("Failed to build - must select at least one C2 Profile")
 	}
 
-	macOSVersion := "10.12"
-	var targetOs string
-	switch payloadBuildMsg.SelectedOS {
-	case agentstructs.SUPPORTED_OS_LINUX:
-		targetOs = "linux"
-	case agentstructs.SUPPORTED_OS_MACOS:
-		targetOs = "darwin"
-	default:
-		return buildError(fmt.Sprintf("Poseidon does not support operating system %q", payloadBuildMsg.SelectedOS))
+	targetOs, err := resolveTargetOs(payloadBuildMsg)
+	if err != nil {
+		return buildError(err.Error())
 	}
 
 	egress_order, err := payloadBuildMsg.BuildParameters.GetArrayArg("egress_order")
@@ -301,6 +345,25 @@ func build(payloadBuildMsg agentstructs.PayloadBuildMessage) agentstructs.Payloa
 		return buildError("Cannot currently build fully static library for macOS")
 	}
 	failedConnectionCountThresholdString, err := payloadBuildMsg.BuildParameters.GetNumberArg("failover_threshold")
+	if err != nil {
+		return buildError(err.Error())
+	}
+	proxyBypass, err := payloadBuildMsg.BuildParameters.GetBooleanArg("proxy_bypass")
+	if err != nil {
+		return buildError(err.Error())
+	}
+	mode, err := payloadBuildMsg.BuildParameters.GetStringArg("mode")
+	if err != nil {
+		return buildError(err.Error())
+	}
+	useUpx, err := payloadBuildMsg.BuildParameters.GetBooleanArg("upx")
+	if err != nil {
+		return buildError(err.Error())
+	}
+	if useUpx && (targetOs != "linux" || mode != "default") {
+		return buildError("UPX is only supported for Linux executable builds")
+	}
+	garble, err := payloadBuildMsg.BuildParameters.GetBooleanArg("garble")
 	if err != nil {
 		return buildError(err.Error())
 	}
@@ -437,37 +500,12 @@ func build(payloadBuildMsg agentstructs.PayloadBuildMessage) agentstructs.Payloa
 			fmt.Sprintf("'%s.%s_%s=%v'", poseidon_repo_profile, payloadBuildMsg.C2Profiles[index].Name, "initial_config", initialConfigBase64))
 	}
 
-	proxyBypass, err := payloadBuildMsg.BuildParameters.GetBooleanArg("proxy_bypass")
-	if err != nil {
-		return buildError(err.Error())
-	}
-	mode, err := payloadBuildMsg.BuildParameters.GetStringArg("mode")
-	if err != nil {
-		return buildError(err.Error())
-	}
-	garble, err := payloadBuildMsg.BuildParameters.GetBooleanArg("garble")
-	if err != nil {
-		return buildError(err.Error())
-	}
 	buildLdFlags = append(buildLdFlags, "-X", fmt.Sprintf("'%s.proxy_bypass=%v'", poseidon_repo_profile, proxyBypass))
 	buildLdFlags = append(buildLdFlags, "-buildid=")
 
-	var goarch string
-	switch architecture {
-	case "AMD_x64":
-		goarch = "amd64"
-	case "ARM_x64":
-		goarch = "arm64"
-	case "MIPS":
-		goarch = "mips"
-	case "MIPSLE":
-		goarch = "mipsle"
-	case "MIPS64":
-		goarch = "mips64"
-	case "MIPS64LE":
-		goarch = "mips64le"
-	default:
-		return buildError("Unsupported Architecture Error")
+	goarch, err := resolveGoArchitecture(architecture)
+	if err != nil {
+		return buildError(err.Error())
 	}
 
 	tags := []string{}
@@ -538,6 +576,7 @@ func build(payloadBuildMsg agentstructs.PayloadBuildMessage) agentstructs.Payloa
 	}
 	payloadName := fmt.Sprintf("%s-%s", payloadBuildMsg.PayloadUUID, targetOs)
 
+	macOSVersion := "10.12"
 	if targetOs == "darwin" {
 		payloadName += fmt.Sprintf("-%s", macOSVersion)
 	}
@@ -620,6 +659,33 @@ func build(payloadBuildMsg agentstructs.PayloadBuildMessage) agentstructs.Payloa
 		payloadBuildResponse.BuildStdErr = stderr.String()
 	}
 	payloadBuildResponse.BuildStdOut += stdout.String()
+
+	payloadPath := filepath.Join("/build", payloadName)
+	if useUpx {
+		upxCmd := exec.Command("upx", "--best", payloadPath)
+
+		var upxStdout bytes.Buffer
+		var upxStderr bytes.Buffer
+		upxCmd.Stdout = &upxStdout
+		upxCmd.Stderr = &upxStderr
+
+		if err := upxCmd.Run(); err != nil {
+			mythicrpc.SendMythicRPCPayloadUpdateBuildStep(
+				mythicrpc.MythicRPCPayloadUpdateBuildStepMessage{
+					PayloadUUID: payloadBuildMsg.PayloadFileUUID,
+					StepName:    "UPX",
+					StepSuccess: false,
+					StepStdout:  upxStdout.String(),
+					StepStderr:  upxStderr.String(),
+				},
+			)
+			return buildError("UPX compression failed: " + err.Error())
+		}
+
+		if output, err := exec.Command("upx", "-t", payloadPath).CombinedOutput(); err != nil {
+			return buildError(fmt.Sprintf("UPX integrity check failed: %n\n%s", err, output))
+		}
+	}
 
 	if payloadBytes, err := os.ReadFile(fmt.Sprintf("/build/%s", payloadName)); err != nil {
 		payloadBuildResponse.Success = false
