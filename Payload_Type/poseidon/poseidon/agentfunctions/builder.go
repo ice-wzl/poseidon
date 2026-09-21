@@ -662,7 +662,7 @@ func build(payloadBuildMsg agentstructs.PayloadBuildMessage) agentstructs.Payloa
 
 	payloadPath := filepath.Join("/build", payloadName)
 	if useUpx {
-		upxCmd := exec.Command("upx", "--best", payloadPath)
+		upxCmd := exec.Command("upx", "-9", "--no-lzma", payloadPath)
 
 		var upxStdout bytes.Buffer
 		var upxStderr bytes.Buffer
@@ -672,7 +672,7 @@ func build(payloadBuildMsg agentstructs.PayloadBuildMessage) agentstructs.Payloa
 		if err := upxCmd.Run(); err != nil {
 			mythicrpc.SendMythicRPCPayloadUpdateBuildStep(
 				mythicrpc.MythicRPCPayloadUpdateBuildStepMessage{
-					PayloadUUID: payloadBuildMsg.PayloadFileUUID,
+					PayloadUUID: payloadBuildMsg.PayloadUUID,
 					StepName:    "UPX",
 					StepSuccess: false,
 					StepStdout:  upxStdout.String(),
@@ -683,7 +683,7 @@ func build(payloadBuildMsg agentstructs.PayloadBuildMessage) agentstructs.Payloa
 		}
 
 		if output, err := exec.Command("upx", "-t", payloadPath).CombinedOutput(); err != nil {
-			return buildError(fmt.Sprintf("UPX integrity check failed: %n\n%s", err, output))
+			return buildError(fmt.Sprintf("UPX integrity check failed: %v\n%s", err, output))
 		}
 	}
 
