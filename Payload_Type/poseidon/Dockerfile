@@ -25,12 +25,12 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
     chmod +x /rcodesign; \
     fi
 
-ARG UPX_VERSION=5.2.1
+ARG UPX_VERSION=4.2.4
 
 RUN set -eux; \
     case "${TARGETARCH}" in \
-        amd64) UPX_SHA256="402162aad30af47e60dbd767fb2e64ca394ace9727ba1f40283641f1d1b91657" ;; \
-        arm64) UPX_SHA256="a72d112c5970a904a31da0b9c84f919bc16b9a311787c12245508544a78c7d36" ;; \
+        amd64) UPX_SHA256="75cab4e57ab72fb4585ee45ff36388d280c7afd72aa03e8d4b9c3cbddb474193" ;;\ 
+        arm64) UPX_SHA256="6bfeae6714e34a82e63245289888719c41fd6af29f749a44ae3d3d166ba6a1c9" ;; \
         *) echo "Unsupported container architecture: ${TARGETARCH}"; exit 1 ;; \
     esac; \
     UPX_ARCHIVE="upx-${UPX_VERSION}-${TARGETARCH}_linux.tar.xz"; \
